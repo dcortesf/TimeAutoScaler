@@ -13,7 +13,7 @@ import (
 type TimeRule struct {
         Hour string
 				ToHour string
-        Collection []string
+        DeploymentConfigs []string
 				scale int
 }
 
@@ -47,7 +47,7 @@ func mytime() {
 						log.Fatal(err)
 		}
 
-		fmt.Println("Rule:", result.Collection)
+		fmt.Println("Afected DCs:", result.DeploymentConfigs)
 	}
 }
 
