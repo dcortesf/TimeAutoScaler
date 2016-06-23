@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 	"log"
+	//"encoding/json"
+  //"github.com/bitly/go-simplejson"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -11,7 +13,7 @@ import (
 type TimeRule struct {
         Hour string
 				ToHour string
-        DeploymentConfig string
+        Collection []string
 				scale int
 }
 
@@ -27,8 +29,8 @@ func mytime() {
 	session.SetMode(mgo.Monotonic, true)
 
 	c := session.DB("rules").C("hours")
-	err = c.Insert(&TimeRule{"12:34","13:50", "MyDeploymentConfig",2},
-					 &TimeRule{"13:30","15:00", "aaa",3})
+	err = c.Insert(&TimeRule{"12:34","13:50", []string{"MyApp", "YourApp"},2},
+					 &TimeRule{"13:30","15:00", []string{"MyApp2", "YourApp2"},3})
 	if err != nil {
 					log.Fatal(err)
 	}
@@ -45,7 +47,7 @@ func mytime() {
 						log.Fatal(err)
 		}
 
-		fmt.Println("Rule:", result.DeploymentConfig)
+		fmt.Println("Rule:", result.Collection)
 	}
 }
 
