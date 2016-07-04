@@ -12,9 +12,8 @@ import (
 
 type TimeRule struct {
         Hour string
-				ToHour string
-        DeploymentConfigs []string
-				scale int
+        DeploymentConfig string
+				Scale int
 }
 
 func mytime() {
@@ -29,25 +28,41 @@ func mytime() {
 	session.SetMode(mgo.Monotonic, true)
 
 	c := session.DB("rules").C("hours")
-	err = c.Insert(&TimeRule{"12:34","13:50", []string{"MyApp", "YourApp"},2},
-					 &TimeRule{"13:30","15:00", []string{"MyApp2", "YourApp2"},3})
+	err = c.Insert(&TimeRule{"12:34", "App1", 2},
+					 &TimeRule{"13:30","App2",-1},&TimeRule{"12:34", "App3", -1})
 	if err != nil {
 					log.Fatal(err)
 	}
 
-	result := TimeRule{}
+	//result := TimeRule{}
+	cResult :=[]TimeRule{}
 
 
 	for {
+
 		time.Sleep(1000 * time.Millisecond)
 		currentTime := time.Now()
 		fmt.Println(currentTime)
-		err = c.Find(bson.M{"hour": "12:34"}).One(&result)
+		tt := currentTime.String()
+		fmt.Println("En String",tt)
+		ttt := tt[:5]
+		fmt.Println(ttt)
+
+		//mm := currentTime[0:16]
+		//fmt.Println(mm)
+		err = c.Find(bson.M{"hour": "12:34"}).All(&cResult)
 		if err != nil {
 						log.Fatal(err)
 		}
 
-		fmt.Println("Afected DCs:", result.DeploymentConfigs)
+		fmt.Println(len(cResult))
+
+		for _, item := range cResult {
+        fmt.Printf(" DeploymentConfig: %s - scale: %d \n", item.DeploymentConfig, item.Scale)
+    }
+
+		//fmt.Println("Afected DCs:", result.DeploymentConfigs)
+		//fmt.Println("Afected DCs:", cResult[0].DeploymentConfigs)
 	}
 }
 
