@@ -34,16 +34,19 @@ func mainLoop() {
 	viper.BindEnv("GPCMONGO_SERVICE_PORT")
 	viper.BindEnv("GPCMONGO_USER")
 	viper.BindEnv("GPCMONGO_PASS")
+	viper.BindEnv("GPC_API_SERVICE_SERVICE_HOST")
 
 	var mongo_host string = "0.0.0.0"
 	var mongo_port string = "27017"
 	var mongo_user string = ""
 	var mongo_pass string = ""
+	var api_service_url string = ""
 
 	mongo_host = viper.GetString("GPCMONGO_SERVICE_HOST")
 	mongo_port = viper.GetString("GPCMONGO_SERVICE_PORT")
 	mongo_user = viper.GetString("GPCMONGO_USER")
 	mongo_pass = viper.GetString("GPCMONGO_PASS")
+	api_service_url = viper.GetString("GPC_API_SERVICE_SERVICE_HOST")
 
 
 	if(mongo_host==""){
@@ -59,7 +62,7 @@ func mainLoop() {
 		os.Exit(0)
 	}
 
-	fmt.Printf("[INFO] - Connecting to %s:%s, database gpc with user %s and %s\n",mongo_host,mongo_port,mongo_user,mongo_pass)
+	fmt.Printf("[INFO] - Connecting to %s:%s, database gpc with user %s\n",mongo_host,mongo_port,mongo_user)
 
 	// We need this object to establish a session to our MongoDB.
 	mongoDBDialInfo := &mgo.DialInfo{
@@ -80,7 +83,6 @@ func mainLoop() {
 	// Optional. Switch the session to a monotonic behavior.
 	session.SetMode(mgo.Monotonic, true)
 
-	fmt.Println("tengo la session")
 	c := session.DB("gpc").C("timeRule")
 	//c := session.DB("test").C("test")
 
@@ -93,7 +95,8 @@ func mainLoop() {
 		time.Sleep(1000 * 60 * time.Millisecond)
 		currentTime := time.Now()
 		fmt.Println(currentTime.In(loc))
-		_CurrentTime := currentTime.String()
+		currentTime = currentTime.In(loc)
+		_CurrentTime := currentTime.In(loc).String()
 		hourNow := _CurrentTime[11:16]
 		day := _CurrentTime[8:10]
 		month := _CurrentTime[5:7]
@@ -120,7 +123,7 @@ func mainLoop() {
 
 		for _, item := range cResult {
         fmt.Printf(" DeploymentConfig: %s - scale: %d \n", item.Dc, item.Instances)
-				scale(item)
+				scale(item, api_service_url)
     }
 
 		//2.
@@ -131,7 +134,7 @@ func mainLoop() {
 
 		for _, item := range cResult {
         fmt.Printf(" DeploymentConfig: %s - scale: %d \n", item.Dc, item.Instances)
-				scale(item)
+				scale(item, api_service_url)
     }
 
 		//3.
@@ -142,7 +145,7 @@ func mainLoop() {
 
 		for _, item := range cResult {
         fmt.Printf(" DeploymentConfig: %s - scale: %d \n", item.Dc, item.Instances)
-				scale(item)
+				scale(item, api_service_url)
     }
 
 		//4.
@@ -153,7 +156,7 @@ func mainLoop() {
 
 		for _, item := range cResult {
         fmt.Printf(" DeploymentConfig: %s - scale: %d \n", item.Dc, item.Instances)
-				scale(item)
+				scale(item, api_service_url)
     }
 
 
@@ -164,8 +167,8 @@ func main() {
    mainLoop()
 }
 
-func scale(data TimeRule) bool{
-		fmt.Printf("Scaling DeploymentConfig %s in namespace %s in region %s", data.Dc, data.Project, data.Region)
+func scale(data TimeRule, api_service_url string) bool{
+		fmt.Printf("Scaling DeploymentConfig %s in namespace %s in region %s\n", data.Dc, data.Project, data.Region)
 
 		ioJsonData := new(bytes.Buffer)
     json.NewEncoder(ioJsonData).Encode(data)
@@ -175,13 +178,14 @@ func scale(data TimeRule) bool{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 
-	scaleUrl := "https://gpc-api-service-globalpaas-dev.appls.boaw.paas.gsnetcloud.corp/api/ose/scale/"+data.Region+"/"+data.Project+"/"+data.Dc+"/"+strconv.Itoa(data.Instances)
+	scaleUrl := "https://"+api_service_url+"/api/ose/scale/"+data.Region+"/"+data.Project+"/"+data.Dc+"/"+strconv.Itoa(data.Instances)
+	//scaleUrl := "https://gpc-api-service-globalpaas-dev.appls.boaw.paas.gsnetcloud.corp/api/ose/scale/"+data.Region+"/"+data.Project+"/"+data.Dc+"/"+strconv.Itoa(data.Instances)
 	fmt.Println(scaleUrl)
 
 	client := &http.Client{Transport: transport}
 	req, _ := http.NewRequest("GET", scaleUrl, ioJsonData)
 
-	req.Header.Add("Authorization", "eyJ0b2tlbiI6eyJjYXAxIjoiVzZuQVpqRnVkQlJfQ3hmN1BRTzV5a0pRVmpfLTl4QXdnOVZwR2lDdzN2SSIsImN0bzIiOiJzRkJpWHJSSlF1U2xTY2xHaFhWV1NYbXJuY05kQXVOaWdTWE9EV3NlYzBnIiwiYm9hdyI6ImxRN1NhUEZPMEtISjBnajRGd1Atak9aMWxaWVFBNFl5WS1yekZ4S2JoSnMiLCJib2FlIjoiTGhweEdHN2lFYnBvUG52cjRobVZMOW9wMlEtLVJOb2lSYXdBYmhKaGIxSSJ9fQ==")
+	req.Header.Add("Authorization", "eyJ0b2tlbiI6eyJjYXAxIjoiWUp5cWZmUTN5ZUt3MGY3aWZPcWpnRU9Eb09ZdDZyMzJhUlpGSFNsOFZuTSIsImN0bzIiOiJNOHZNWnNJR21CMEVyODFUaEpLbnAwdExyZmVMNHh5aGxWMXF6NUVkX0pVIiwiYm9hdyI6IkhxZmlqOFQzQTZGQWNQbEpBQUYyR0VHTjNkcGNwSGgxbmdlWkl1ekJfNlkiLCJib2FlIjoicUdoSkRtbEtIZHRHX3hvejdMRmh5Z09UQldhV0pCaVhzZUtObHdldVE4RSJ9fQ==")
 	req.Header.Add("Content-Type", "application/json")
 	res, err := client.Do(req)
 	if err != nil {
@@ -189,7 +193,7 @@ func scale(data TimeRule) bool{
 		fmt.Println(err)
 	} else {
 		if res.StatusCode == 200 {
-			fmt.Println("Time-rule has been added successfully")
+			fmt.Println("Scale process launch successfully")
 			return true
 		}else{
 			switch res.StatusCode {
