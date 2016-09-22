@@ -10,7 +10,6 @@ import (
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 	"os"
-	//flag "github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"net/http"
 	"strconv"
