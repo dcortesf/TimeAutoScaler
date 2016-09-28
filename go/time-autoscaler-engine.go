@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/viper"
 	"net/http"
 	"strconv"
+	"github.com/dcortesf/serenity/paas/utils"
 )
 
 //Data structure which contains the
@@ -25,37 +26,32 @@ type TimeRule struct {
 	Instances       int               `json:"instances" yaml:"instances"`
 }
 
+
 func mainLoop() {
 
-	fmt.Println("[INFO] - Initialize autoscaler")
+	fmt.Println("[INFO] - Starting time-scaler-engine")
 
 	viper.BindEnv("GPCMONGO_SERVICE_HOST")
 	viper.BindEnv("GPCMONGO_SERVICE_PORT")
 	viper.BindEnv("GPCMONGO_USER")
 	viper.BindEnv("GPCMONGO_PASS")
 	viper.BindEnv("GPC_API_SERVICE_SERVICE_HOST")
-	viper.BindEnv("SERVICE_ACCOUNT_TOKEN")
 
 	var mongo_host string = "0.0.0.0"
 	var mongo_port string = "27017"
 	var mongo_user string = ""
 	var mongo_pass string = ""
 	var api_service_url string = ""
-	var token = ""
+
 
 	mongo_host = viper.GetString("GPCMONGO_SERVICE_HOST")
 	mongo_port = viper.GetString("GPCMONGO_SERVICE_PORT")
 	mongo_user = viper.GetString("GPCMONGO_USER")
 	mongo_pass = viper.GetString("GPCMONGO_PASS")
 	api_service_url = viper.GetString("GPC_API_SERVICE_SERVICE_HOST")
-	token = viper.GetString("SERVICE_ACCOUNT_TOKEN")
 
-	if(token==""){
-		fmt.Println("[ERROR] - Cannot find service account security token in env var SERVICE_ACCOUNT_TOKEN")
-		os.Exit(0)
-	}
-
-
+	utils.ReadSecret("/etc/secret-volume")
+	
 	if(mongo_host==""){
 		fmt.Println("[INFO] - Cannot find host and port ... stablished 0.0.0.0:27017 by default")
 		mongo_host = "0.0.0.0"
@@ -130,7 +126,7 @@ func mainLoop() {
 
 		for _, item := range cResult {
         fmt.Printf(" DeploymentConfig: %s - scale: %d \n", item.Dc, item.Instances)
-				scale(item, api_service_url, token)
+				scale(item, api_service_url)
     }
 
 		//2.
@@ -141,7 +137,7 @@ func mainLoop() {
 
 		for _, item := range cResult {
         fmt.Printf(" DeploymentConfig: %s - scale: %d \n", item.Dc, item.Instances)
-				scale(item, api_service_url, token)
+				scale(item, api_service_url)
     }
 
 		//3.
@@ -152,7 +148,7 @@ func mainLoop() {
 
 		for _, item := range cResult {
         fmt.Printf(" DeploymentConfig: %s - scale: %d \n", item.Dc, item.Instances)
-				scale(item, api_service_url, token)
+				scale(item, api_service_url)
     }
 
 		//4.
@@ -163,7 +159,7 @@ func mainLoop() {
 
 		for _, item := range cResult {
         fmt.Printf(" DeploymentConfig: %s - scale: %d \n", item.Dc, item.Instances)
-				scale(item, api_service_url, token)
+				scale(item, api_service_url)
     }
 
 
@@ -174,7 +170,7 @@ func main() {
    mainLoop()
 }
 
-func scale(data TimeRule, api_service_url string, token string) bool{
+func scale(data TimeRule, api_service_url string) bool{
 		fmt.Printf("Scaling DeploymentConfig %s in namespace %s in region %s\n", data.Dc, data.Project, data.Region)
 
 		ioJsonData := new(bytes.Buffer)
@@ -192,7 +188,7 @@ func scale(data TimeRule, api_service_url string, token string) bool{
 	client := &http.Client{Transport: transport}
 	req, _ := http.NewRequest("GET", scaleUrl, ioJsonData)
 
-	req.Header.Add("Authorization", token)
+	req.Header.Add("Authorization", utils.GetValue(data.Region))
 	req.Header.Add("Content-Type", "application/json")
 	res, err := client.Do(req)
 	if err != nil {

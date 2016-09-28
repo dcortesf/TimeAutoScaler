@@ -1,0 +1,109 @@
+apiVersion: v1
+kind: Template
+metadata:
+  annotations:
+    description: |
+      Template to deploy a Time-Scaler engine
+      Documentation available at https://gitlab.ci.gsnet.corp/openshift-v3-images
+    iconClass: icon-java
+    tags: instant-app,gpc, time-scaler
+  creationTimestamp: 2016-09-27T13:45:15Z
+  name: time-scaler-engine
+  namespace: globalpaas-dev
+  resourceVersion: "7203333"
+  selfLink: /oapi/v1/namespaces/openshift/templates/tomcat8
+  uid: 9ab65238-0e10-11e6-95b1-fa163eaa870c
+objects:
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    labels:
+      app_name: ${APP_NAME}
+    name: ${APP_NAME}
+  spec:
+    replicas: 1
+    selector:
+      app_name: ${APP_NAME}
+      deploymentconfig: ${APP_NAME}
+    strategy:
+      resources: {}
+      rollingParams:
+        intervalSeconds: 1
+        timeoutSeconds: 600
+        updatePeriodSeconds: 1
+      type: Rolling
+    template:
+      metadata:
+        labels:
+          app_name: ${APP_NAME}
+          deploymentconfig: ${APP_NAME}
+      spec:
+        containers:
+        - env:
+          - name: APP_NAME
+            value: ${APP_NAME}
+          - name: GPCMONGO_USER
+            value: ${GPCMONGO_USER}
+          - name: GPCMONGO_PASS
+            value: ${GPCMONGO_PASS}
+          - name: GPC_API_SERVICE_SERVICE_HOST
+            value: ${GPC_API_SERVICE_SERVICE_HOST}
+          - name: TZ
+            value: ${TZ}
+          image: dcortesf/time-scaler-engine:latest
+          imagePullPolicy: Always
+          name: ${APP_NAME}
+          resources:
+            limits:
+              memory: 64M
+            request:
+              memory: 64M
+          securityContext:
+            capabilities: {}
+            privileged: false
+          terminationMessagePath: /dev/termination-log
+          volumeMounts:
+          - mountPath: /opt/metadata
+            name: podinfo
+            readOnly: false
+          - name: secret-volume
+            mountPath: /etc/secret-volume
+            readOnly: true
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        volumes:
+        - metadata:
+            items:
+            - fieldRef:
+                fieldPath: metadata.labels
+              name: labels
+            - fieldRef:
+                fieldPath: metadata.annotations
+              name: annotations
+          name: podinfo
+        - name: secret-volume
+          secret:
+            secretName: ${SECRET_NAME}
+  status: {}
+parameters:
+- description: Application name
+  name: APP_NAME
+  required: true
+- description: MongoGPC user
+  displayName: Mongo user
+  name: GPCMONGO_USER
+  required: true
+- description: MongoGPC pass
+  displayName: Mongo pass
+  name: GPCMONGO_PASS
+  required: true
+- description: GPC api-service FQDN
+  displayName: api-service
+  name: GPC_API_SERVICE_SERVICE_HOST
+  required: true
+  value: "gpc-api-service-globalpaas-dev.appls.boaw.paas.gsnetcloud.corp"
+- description: Name of the SECRET object to load
+  name: SECRET_NAME
+- description: TimeZone for the running containers.
+  name: TZ
+  value: Europe/Madrid
